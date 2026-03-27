@@ -1,6 +1,6 @@
 """
-JABU DIgiTech 2,0 - Age Detection Utilities
-==========================================
+Age Detection Utilities
+=======================
 This module handles model loading, face detection, and age prediction.
 """
 
@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 import cv2
 from mtcnn import MTCNN
-import tensorflow as tf
+import keras
 from pathlib import Path
 
 # Constants
@@ -30,7 +30,7 @@ def load_model():
     
     if model is None:
         print(f"Loading model from: {MODEL_PATH}")
-        model = tf.keras.models.load_model(MODEL_PATH)
+        model = keras.models.load_model(MODEL_PATH)
         print("Model loaded successfully!")
     
     return model
