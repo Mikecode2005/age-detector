@@ -7,7 +7,6 @@ using camera feed or image upload.
 
 import streamlit as st
 from PIL import Image
-import numpy as np
 from utils import predict_age_sex
 
 # Page configuration
@@ -67,31 +66,12 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Upload area */
-    .upload-section {
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 2rem;
-        text-align: center;
-        margin: 1rem 0;
-    }
-    
+    /* Upload text */
     .upload-text {
         color: #8b949e;
         font-size: 0.9rem;
-    }
-    
-    /* Image display */
-    .image-container {
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1rem;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 300px;
+        text-align: center;
+        margin-bottom: 1rem;
     }
     
     /* Results card */
@@ -100,6 +80,7 @@ st.markdown("""
         border: 1px solid #30363d;
         border-radius: 8px;
         padding: 1.5rem;
+        text-align: center;
     }
     
     .result-label {
@@ -108,6 +89,7 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1px;
         margin-bottom: 0.25rem;
+        text-align: center;
     }
     
     .result-value {
@@ -115,6 +97,7 @@ st.markdown("""
         font-size: 2rem;
         font-weight: 600;
         margin: 0;
+        text-align: center;
     }
     
     .result-value-small {
@@ -122,6 +105,7 @@ st.markdown("""
         font-size: 1.25rem;
         font-weight: 500;
         margin: 0;
+        text-align: center;
     }
     
     .gender-tag {
@@ -138,42 +122,11 @@ st.markdown("""
         background: #8b5cf6;
     }
     
-    /* Loading spinner text */
-    .loading-text {
-        color: #8b949e;
-        text-align: center;
-        padding: 2rem;
-    }
-    
-    /* Error message */
-    .error-box {
-        background: #2d1f1f;
-        border: 1px solid #f85149;
-        border-radius: 8px;
-        padding: 1rem;
-        color: #f85149;
-    }
-    
     /* Info text */
-    .info-box {
-        background: #1f2937;
-        border: 1px solid #374151;
-        border-radius: 8px;
-        padding: 1rem;
+    .info-text {
         color: #9ca3af;
-        font-size: 0.85rem;
-    }
-    
-    /* Two column layout */
-    .main-content {
-        display: flex;
-        gap: 1.5rem;
-    }
-    
-    @media (max-width: 768px) {
-        .main-content {
-            flex-direction: column;
-        }
+        font-size: 0.9rem;
+        text-align: center;
     }
     
     /* Hide default streamlit elements */
@@ -217,10 +170,6 @@ def main():
     # Initialize session state
     if 'prediction_result' not in st.session_state:
         st.session_state.prediction_result = None
-    if 'current_image' not in st.session_state:
-        st.session_state.current_image = None
-    if 'processed' not in st.session_state:
-        st.session_state.processed = False
     
     # Header
     st.markdown("""
@@ -243,6 +192,7 @@ def main():
         
         if camera_image:
             current_image = camera_image
+            st.session_state.prediction_result = None
     
     with tab2:
         st.markdown('<p class="upload-text">Upload an image file</p>', 
@@ -257,6 +207,7 @@ def main():
         
         if uploaded_file:
             current_image = uploaded_file
+            st.session_state.prediction_result = None
     
     # Main content area
     st.markdown("<br>", unsafe_allow_html=True)
@@ -268,11 +219,8 @@ def main():
         if current_image:
             st.image(current_image, caption="Input Image", width='stretch')
         else:
-            st.markdown('''
-            <div class="info-box">
-                No image selected. Use the Camera or Upload tab to get started.
-            </div>
-            ''', unsafe_allow_html=True)
+            st.markdown('<p class="info-text">No image selected. Use the Camera or Upload tab to get started.</p>', 
+                       unsafe_allow_html=True)
     
     with col2:
         if current_image:
@@ -289,36 +237,34 @@ def main():
             # Show results if available
             if st.session_state.prediction_result:
                 result = st.session_state.prediction_result
-                gender_class = "" if result['sex'] == "Male" else " female"
                 
-                st.markdown(f'''
-                <div class="results-card">
-                    <p class="result-label">Estimated Age</p>
-                    <p class="result-value">{result['age']} years</p>
-                    
-                    <br>
-                    
-                    <p class="result-label">Gender</p>
-                    <span class="gender-tag{gender_class}">{result['sex']}</span>
-                    
-                    <br><br>
-                    
-                    <p class="result-label">Confidence</p>
-                    <p class="result-value-small">{result['sex_confidence']:.0%}</p>
-                </div>
-                ''', unsafe_allow_html=True)
+                # Create a container for results
+                st.markdown('<div class="results-card">', unsafe_allow_html=True)
+                
+                st.markdown('<p class="result-label">Estimated Age</p>', unsafe_allow_html=True)
+                st.markdown(f'<p class="result-value">{result["age"]} years</p>', unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                st.markdown('<p class="result-label">Gender</p>', unsafe_allow_html=True)
+                
+                if result['sex'] == "Male":
+                    st.markdown(f'<p class="gender-tag">{result["sex"]}</p>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<p class="gender-tag female">{result["sex"]}</p>', unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                st.markdown('<p class="result-label">Confidence</p>', unsafe_allow_html=True)
+                st.markdown(f'<p class="result-value-small">{result["sex_confidence"]:.0%}</p>', unsafe_allow_html=True)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
             else:
-                st.markdown('''
-                <div class="info-box">
-                    Click "Analyze Image" to detect age and gender.
-                </div>
-                ''', unsafe_allow_html=True)
+                st.markdown('<p class="info-text">Click "Analyze Image" to detect age and gender.</p>', 
+                           unsafe_allow_html=True)
         else:
-            st.markdown('''
-            <div class="info-box">
-                Results will appear here after image analysis.
-            </div>
-            ''', unsafe_allow_html=True)
+            st.markdown('<p class="info-text">Results will appear here after image analysis.</p>', 
+                       unsafe_allow_html=True)
     
     # Clear button (only show if there's an image)
     if current_image:
