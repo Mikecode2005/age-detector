@@ -8,7 +8,6 @@ import os
 import numpy as np
 from PIL import Image
 import cv2
-from mtcnn import MTCNN
 import keras
 from pathlib import Path
 
@@ -16,15 +15,13 @@ from pathlib import Path
 MODEL_PATH = Path(__file__).parent / "models" / "Age_Sex_Detection.h5"
 TARGET_SIZE = (224, 224)
 
-# Global model and detector instances
+# Global model instance
 model = None
-detector = None
 
 
 def load_model():
     """
     Load the Keras model for age and sex detection.
-    Downloads from Google Drive if not found locally.
     """
     global model
     
@@ -36,21 +33,27 @@ def load_model():
     return model
 
 
-def get_detector():
+def get_face_detector():
     """
-    Initialize and return the MTCNN face detector.
+    Initialize and return OpenCV DNN face detector.
+    Uses a pre-trained model from OpenCV.
     """
-    global detector
+    # Use OpenCV's DNN module with a pre-trained face detection model
+    # We'll use the Caffe model which doesn't require TensorFlow
+    prototxt_path = "deploy.prototxt"
+    caffemodel_path = "res10_300x300_ssd_iter_140000.caffemodel"
     
-    if detector is None:
-        detector = MTCNN()
+    # Check if model files exist, if not use Haar cascade as fallback
+    detector = None
+    if os.path.exists(prototxt_path) and os.path.exists(caffemodel_path):
+        detector = cv2.dnn.readNetFromCaffe(prototxt_path, caffemodel_path)
     
     return detector
 
 
-def detect_face(image_array):
+def detect_face_haar(image_array):
     """
-    Detect and crop the largest face from an image.
+    Detect face using Haar Cascade classifier.
     
     Args:
         image_array: numpy array of image in RGB format
@@ -58,29 +61,123 @@ def detect_face(image_array):
     Returns:
         Cropped face image as numpy array, or None if no face detected
     """
-    det = get_detector()
+    # Convert RGB to BGR for OpenCV
+    image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+    
+    # Load Haar Cascade
+    face_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    )
     
     # Detect faces
-    results = det.detect_faces(image_array)
+    faces = face_cascade.detectMultiScale(
+        image_bgr,
+        scaleFactor=1.1,
+        minNeighbors=5,
+        minSize=(30, 30)
+    )
     
-    if len(results) == 0:
+    if len(faces) == 0:
         return None
     
-    # Find the largest face (by bounding box area)
-    largest_face = max(results, key=lambda x: x['box'][2] * x['box'][3])
+    # Get the largest face
+    largest_face = max(faces, key=lambda x: x[2] * x[3])
+    x, y, width, height = largest_face
     
-    x, y, width, height = largest_face['box']
-    
-    # Add some padding around the face
+    # Add padding around the face
     padding = int(max(width, height) * 0.2)
     x1 = max(0, x - padding)
     y1 = max(0, y - padding)
-    x2 = min(image_array.shape[1], x + width + padding)
-    y2 = min(image_array.shape[0], y + height + padding)
+    x2 = min(image_bgr.shape[1], x + width + padding)
+    y2 = min(image_bgr.shape[0], y + height + padding)
     
     # Crop the face
-    face = image_array[y1:y2, x1:x2]
+    face = image_bgr[y1:y2, x1:x2]
     
+    # Convert back to RGB
+    face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+    
+    return face
+
+
+def detect_face_dnn(image_array):
+    """
+    Detect face using OpenCV DNN with Caffe model.
+    
+    Args:
+        image_array: numpy array of image in RGB format
+        
+    Returns:
+        Cropped face image as numpy array, or None if no face detected
+    """
+    # Convert RGB to BGR for OpenCV
+    image_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+    h, w = image_bgr.shape[:2]
+    
+    # Create blob from image
+    blob = cv2.dnn.blobFromImage(
+        cv2.resize(image_bgr, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0)
+    )
+    
+    # Get detector
+    detector = get_face_detector()
+    if detector is None:
+        return None
+    
+    # Detect faces
+    detector.setInput(blob)
+    detections = detector.forward()
+    
+    # Find the largest face with confidence > 0.5
+    faces = []
+    for i in range(detections.shape[2]):
+        confidence = detections[0, 0, i, 2]
+        if confidence > 0.5:
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+            (x1, y1, x2, y2) = box.astype("int")
+            faces.append((x1, y1, x2 - x1, y2 - y1))
+    
+    if len(faces) == 0:
+        return None
+    
+    # Get the largest face
+    largest_face = max(faces, key=lambda x: x[2] * x[3])
+    x, y, width, height = largest_face
+    
+    # Add padding around the face
+    padding = int(max(width, height) * 0.2)
+    x1 = max(0, x - padding)
+    y1 = max(0, y - padding)
+    x2 = min(w, x + width + padding)
+    y2 = min(h, y + height + padding)
+    
+    # Crop the face
+    face = image_bgr[y1:y2, x1:x2]
+    
+    # Convert back to RGB
+    face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+    
+    return face
+
+
+def detect_face(image_array):
+    """
+    Detect and crop the largest face from an image.
+    Tries DNN first, falls back to Haar cascade.
+    
+    Args:
+        image_array: numpy array of image in RGB format
+        
+    Returns:
+        Cropped face image as numpy array, or None if no face detected
+    """
+    # Try DNN first
+    face = detect_face_dnn(image_array)
+    if face is not None:
+        return face
+    
+    # Fall back to Haar cascade
+    face = detect_face_haar(image_array)
     return face
 
 
