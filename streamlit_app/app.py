@@ -10,6 +10,8 @@ from PIL import Image
 import numpy as np
 from utils import predict_age_sex
 
+print("[APP] Starting application...")
+
 # Page configuration
 st.set_page_config(
     page_title="Age Detector",
@@ -17,6 +19,8 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+print("[APP] Page config set")
 
 # Custom CSS - Dark theme, minimal, professional
 st.markdown("""
@@ -213,16 +217,15 @@ st.markdown("""
 
 def main():
     """Main application function."""
+    print("[APP] Entering main()")
     
     # Initialize session state
     if 'prediction_result' not in st.session_state:
         st.session_state.prediction_result = None
     if 'current_image' not in st.session_state:
         st.session_state.current_image = None
-    if 'is_processing' not in st.session_state:
-        st.session_state.is_processing = False
-    if 'process_trigger' not in st.session_state:
-        st.session_state.process_trigger = None
+    
+    print("[APP] Session state initialized")
     
     # Header
     st.markdown("""
@@ -234,6 +237,7 @@ def main():
     
     # Create tabs
     tab1, tab2 = st.tabs(["Camera", "Upload"])
+    print("[APP] Tabs created")
     
     image_source = None
     
@@ -242,8 +246,10 @@ def main():
                    unsafe_allow_html=True)
         
         camera_image = st.camera_input("Capture", label_visibility="collapsed")
+        print(f"[APP] Camera input: {camera_image is not None}")
         
         if camera_image:
+            print("[APP] Camera image captured")
             image_source = camera_image
             st.session_state.current_image = camera_image
             st.session_state.prediction_result = None
@@ -258,34 +264,46 @@ def main():
             help=None,
             label_visibility="collapsed"
         )
+        print(f"[APP] File uploaded: {uploaded_file is not None}")
         
         if uploaded_file:
+            print("[APP] File uploaded successfully")
             image_source = uploaded_file
             st.session_state.current_image = uploaded_file
             st.session_state.prediction_result = None
     
     # Auto-process when image is captured/uploaded
     if st.session_state.current_image and not st.session_state.prediction_result:
+        print("[APP] Processing image...")
         if image_source == st.session_state.current_image:
-            with st.spinner(""):
-                st.markdown('<p class="loading-text">Analyzing image...</p>', 
-                           unsafe_allow_html=True)
-                try:
-                    # Read and process image
-                    image = Image.open(st.session_state.current_image)
-                    
-                    # Make prediction
-                    result = predict_age_sex(image)
-                    
-                    st.session_state.prediction_result = result
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.markdown(f'''
-                    <div class="error-box">
-                        Error: {str(e)}
-                    </div>
-                    ''', unsafe_allow_html=True)
+            print("[APP] Image matches, starting prediction")
+            
+            # Show loading message
+            st.markdown('<p class="loading-text">Analyzing image...</p>', 
+                       unsafe_allow_html=True)
+            
+            try:
+                # Read and process image
+                print("[APP] Opening image...")
+                image = Image.open(st.session_state.current_image)
+                print(f"[APP] Image opened: {image.size}")
+                
+                # Make prediction
+                print("[APP] Calling predict_age_sex()...")
+                result = predict_age_sex(image)
+                print(f"[APP] Prediction result: {result}")
+                
+                st.session_state.prediction_result = result
+                print("[APP] Storing result, rerunning...")
+                st.rerun()
+                
+            except Exception as e:
+                print(f"[APP ERROR] Exception: {str(e)}")
+                st.markdown(f'''
+                <div class="error-box">
+                    Error: {str(e)}
+                </div>
+                ''', unsafe_allow_html=True)
     
     # Main content area
     st.markdown("<br>", unsafe_allow_html=True)
@@ -298,6 +316,7 @@ def main():
             st.image(st.session_state.current_image, 
                     caption="Input Image", 
                     use_container_width=True)
+            print("[APP] Displaying image")
         else:
             st.markdown('''
             <div class="info-box">
@@ -307,6 +326,7 @@ def main():
     
     with col2:
         if st.session_state.prediction_result:
+            print("[APP] Displaying results")
             result = st.session_state.prediction_result
             
             gender_class = "" if result['sex'] == "Male" else " female"
@@ -345,10 +365,14 @@ def main():
     if st.session_state.current_image or st.session_state.prediction_result:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Clear & Start Over", use_container_width=True):
+            print("[APP] Clear button clicked")
             st.session_state.prediction_result = None
             st.session_state.current_image = None
             st.rerun()
+    
+    print("[APP] main() loop complete")
 
 
 if __name__ == "__main__":
+    print("[APP] Starting main()")
     main()
