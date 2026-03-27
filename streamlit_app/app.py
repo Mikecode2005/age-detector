@@ -8,7 +8,7 @@ using camera feed or image upload.
 import streamlit as st
 from PIL import Image
 import numpy as np
-from utils import load_model, predict_age_sex
+from utils import predict_age_sex
 
 # Page configuration
 st.set_page_config(
@@ -271,9 +271,6 @@ def main():
                 st.markdown('<p class="loading-text">Analyzing image...</p>', 
                            unsafe_allow_html=True)
                 try:
-                    # Load model
-                    load_model()
-                    
                     # Read and process image
                     image = Image.open(st.session_state.current_image)
                     
